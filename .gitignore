@@ -1,0 +1,10 @@
+node_modules/
+dist/
+plugins/
+config/config.yaml
+config/*.local.yaml
+logs/
+data/
+.env
+*.log
+.vitest-cache/

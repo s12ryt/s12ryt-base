@@ -1,0 +1,2 @@
+# 統一文字檔使用 LF，避免跨平台 CRLF 差異
+* text=auto eol=lf
