@@ -9,7 +9,8 @@
  */
 
 import path from 'node:path';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readdir as fsReaddir } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import readline from 'node:readline';
 
@@ -304,6 +305,7 @@ export async function main(options: MainOptions = {}): Promise<number> {
   }
   function writeState(state: Record<string, boolean>): void {
     try {
+      mkdirSync(path.dirname(statePath), { recursive: true });
       writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf-8');
     } catch (err) {
       logger.warn(`Failed to persist plugin state: ${(err as Error).message}`);
@@ -337,6 +339,23 @@ export async function main(options: MainOptions = {}): Promise<number> {
     manager,
   });
   Object.assign(hostRef, host);
+
+  // ── 預載已安裝插件 ──
+  // 每個 CLI 指令都是獨立進程：掃描 pluginsDir 讓 list/info/enable/disable/update
+  // 能看見先前進程安裝的插件。此處僅 load（不 activate）——
+  // 是否啟用由個別指令或 host.start() 的 applyPersistedState 決定。
+  try {
+    const entries = await fsReaddir(pluginsDir);
+    for (const sub of entries) {
+      try {
+        await manager.load(path.join(pluginsDir, sub));
+      } catch {
+        // 個別插件載入失敗（非插件目錄/manifest 無效）不中斷指令執行
+      }
+    }
+  } catch {
+    // pluginsDir 不存在（尚未安裝任何插件），跳過
+  }
 
   // ── Installer（含互動確認）──
   async function confirm(message: string): Promise<boolean> {
